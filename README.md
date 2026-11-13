@@ -9,7 +9,8 @@ AI-assisted operating system for a local-business marketing agency. Initial pilo
 - Evidence-first classification rules.
 - CSV prospect import and export.
 - Prospect detail drawer with evidence status and recommended next step.
-- HasData integration setup placeholder. No API key is exposed in the browser.
+- Server-side HasData Google Maps discovery endpoint; the API key is read only from `HASDATA_API_KEY` on the Railway server.
+- MyPI live discovery button imports real Google Maps business listings while leaving advertising evidence as Unknown until separately audited.
 - Sample records are explicitly illustrative and are not real businesses or verified market research.
 
 ## Run locally
@@ -46,9 +47,11 @@ A failed lookup is not proof that a company has no ads. Store the evidence sourc
 
 ## Integrations and security
 
-HasData is planned as the discovery/enrichment provider. Its API key must be stored server-side as an environment secret. Never put API keys in React code, committed files, CSV exports, or browser storage.
+HasData Google Maps Search is connected through the Express server in `server.js`. The server reads `HASDATA_API_KEY` from its environment and sends it in the `x-api-key` header. The key is never sent to the browser. The discovery endpoint currently runs one fixed Phoenix HVAC search, caches results for 30 minutes, and rate-limits repeated requests from the same IP.
 
-Live discovery is intentionally disabled until the exact HasData endpoint, authentication format, permitted data fields, and server deployment are configured and tested. Meta Ad Library research is a separate evidence source; Google search ads are not a substitute for Meta ad records.
+Current HasData documentation lists Google Maps Search at 10 credits per successful request. With 100 monthly credits, plan for roughly 10 successful searches. The first MyPI search uses one request. A Maps listing does not prove that a company has no website or whether it runs ads: missing website evidence remains Unknown, and ad evidence always remains Unknown until separately researched.
+
+Never put API keys in React code, committed files, CSV exports, or browser storage. Meta Ad Library research is a separate evidence source; Google search ads are not a substitute for Meta ad records.
 
 Instagram outreach is not automated in this MVP. Prepare and review messages first; use official, permitted messaging methods and honor opt-outs. No messages, ad spend, contracts, or payments are initiated by this application.
 
