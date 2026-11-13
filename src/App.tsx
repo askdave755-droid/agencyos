@@ -10,7 +10,7 @@ type Lane = "A" | "B" | "C" | "D" | "Unknown";
 type Prospect = {
   id: string; name: string; city: string; state: string; rating?: number;
   reviews?: number; website: "yes" | "no" | "unknown";
-  ads: "active" | "none-found" | "problem" | "unknown";
+  ads: "active" | "good" | "none-found" | "problem" | "unknown";
   lane: Lane; score: number; issue: string; offer: string; status: string;
   source: string; demo?: boolean;
 };
@@ -19,7 +19,7 @@ const starterProspects: Prospect[] = [
   { id:"demo-1", name:"Copper State Comfort", city:"Phoenix", state:"AZ", rating:4.2, reviews:86, website:"yes", ads:"problem", lane:"B", score:88, issue:"Ad landing page has no clear estimate request above the fold.", offer:"Repair the ad-to-landing-page conversion path", status:"Needs review", source:"Illustrative demo record", demo:true },
   { id:"demo-2", name:"Desert Ridge Air", city:"Scottsdale", state:"AZ", rating:4.7, reviews:214, website:"yes", ads:"none-found", lane:"C", score:82, issue:"Website found; no active ads verified in this sample.", offer:"Local lead-generation campaign", status:"Ready to research", source:"Illustrative demo record", demo:true },
   { id:"demo-3", name:"Valley Breeze Heating & Cooling", city:"Mesa", state:"AZ", rating:4.5, reviews:132, website:"no", ads:"unknown", lane:"A", score:79, issue:"No business website verified.", offer:"Website foundation", status:"Needs review", source:"Illustrative demo record", demo:true },
-  { id:"demo-4", name:"Sonoran Mechanical", city:"Chandler", state:"AZ", rating:4.8, reviews:301, website:"yes", ads:"active", lane:"D", score:34, issue:"Website and ads appear established; no clear gap identified yet.", offer:"Nurture — do not force a sale", status:"Nurture", source:"Illustrative demo record", demo:true },
+  { id:"demo-4", name:"Sonoran Mechanical", city:"Chandler", state:"AZ", rating:4.8, reviews:301, website:"yes", ads:"good", lane:"D", score:34, issue:"Website and ads appear established; no clear gap identified yet.", offer:"Nurture — do not force a sale", status:"Nurture", source:"Illustrative demo record", demo:true },
   { id:"demo-5", name:"East Valley Climate Pros", city:"Gilbert", state:"AZ", rating:4.1, reviews:58, website:"unknown", ads:"unknown", lane:"Unknown", score:0, issue:"Not enough verified evidence to classify.", offer:"Research required", status:"Unverified", source:"Illustrative demo record", demo:true }
 ];
 
@@ -36,7 +36,7 @@ function classify(website: Prospect["website"], ads: Prospect["ads"]): Lane {
   if (website === "unknown" || ads === "unknown") return "Unknown";
   if (ads === "problem") return "B";
   if (website === "yes" && ads === "none-found") return "C";
-  if (website === "yes" && ads === "active") return "D";
+  if (website === "yes" && ads === "good") return "D";
   return "Unknown";
 }
 
@@ -52,7 +52,7 @@ function parseCsv(text: string): Prospect[] {
     const websiteRaw = get(parts,"website").toLowerCase();
     const adsRaw = get(parts,"ads").toLowerCase();
     const website:Prospect["website"] = websiteRaw==="no"||websiteRaw==="none"?"no":websiteRaw==="yes"||websiteRaw.startsWith("http")?"yes":"unknown";
-    const ads:Prospect["ads"] = adsRaw==="problem"?"problem":adsRaw==="active"?"active":adsRaw==="none"||adsRaw==="none-found"?"none-found":"unknown";
+    const ads:Prospect["ads"] = adsRaw==="problem"?"problem":adsRaw==="good"?"good":adsRaw==="active"?"active":adsRaw==="none"||adsRaw==="none-found"?"none-found":"unknown";
     const lane = classify(website,ads);
     return {id:"import-"+Date.now()+"-"+i,name,city:get(parts,"city")||"—",state:get(parts,"state")||"AZ",website,ads,lane,score:0,issue:"Imported record — audit evidence not yet verified.",offer:laneInfo[lane].offer,status:"Imported",source:"CSV import"} as Prospect;
   }).filter((x):x is Prospect=>Boolean(x));
@@ -161,6 +161,6 @@ export default function App() {
       </div>
     </main>
 
-    {selected&&<div className="drawer-backdrop" onClick={()=>setSelected(null)}><aside className="detail-drawer" onClick={e=>e.stopPropagation()}><div className="drawer-top"><span className="panel-kicker">PROSPECT PROFILE</span><button className="icon-button" onClick={()=>setSelected(null)}><X size={18}/></button></div><div className="drawer-title"><div className="business-logo large">{selected.name.split(" ").map(x=>x[0]).slice(0,2).join("")}</div><div><h2>{selected.name}</h2><p><MapPin size={13}/>{selected.city}, {selected.state}</p></div></div><LanePill lane={selected.lane}/><div className="drawer-section"><h3>Diagnosis</h3><p>{selected.issue}</p></div><div className="drawer-section"><h3>Recommended next step</h3><div className="recommendation"><Sparkles size={16}/><b>{selected.offer}</b></div></div><div className="drawer-section"><h3>Evidence status</h3><div className="evidence-row"><span>Website</span><b>{selected.website==="yes"?"Found":selected.website==="no"?"Not found":"Unknown"}</b></div><div className="evidence-row"><span>Advertising</span><b>{selected.ads==="active"?"Active evidence":selected.ads==="problem"?"Problem identified":selected.ads==="none-found"?"No ads found — verify coverage":"Unknown"}</b></div><div className="evidence-row"><span>Source</span><b>{selected.source}</b></div></div><div className="drawer-warning"><ShieldCheck size={16}/> Confirm the evidence before contacting this business. No automated messages are sent.</div><button className="btn btn-primary full" onClick={()=>setSelected(null)}>Close profile</button></aside></div>}
+    {selected&&<div className="drawer-backdrop" onClick={()=>setSelected(null)}><aside className="detail-drawer" onClick={e=>e.stopPropagation()}><div className="drawer-top"><span className="panel-kicker">PROSPECT PROFILE</span><button className="icon-button" onClick={()=>setSelected(null)}><X size={18}/></button></div><div className="drawer-title"><div className="business-logo large">{selected.name.split(" ").map(x=>x[0]).slice(0,2).join("")}</div><div><h2>{selected.name}</h2><p><MapPin size={13}/>{selected.city}, {selected.state}</p></div></div><LanePill lane={selected.lane}/><div className="drawer-section"><h3>Diagnosis</h3><p>{selected.issue}</p></div><div className="drawer-section"><h3>Recommended next step</h3><div className="recommendation"><Sparkles size={16}/><b>{selected.offer}</b></div></div><div className="drawer-section"><h3>Evidence status</h3><div className="evidence-row"><span>Website</span><b>{selected.website==="yes"?"Found":selected.website==="no"?"Not found":"Unknown"}</b></div><div className="evidence-row"><span>Advertising</span><b>{selected.ads==="good"?"Good ads verified":selected.ads==="active"?"Active — quality not assessed":selected.ads==="problem"?"Problem identified":selected.ads==="none-found"?"No ads found — verify coverage":"Unknown"}</b></div><div className="evidence-row"><span>Source</span><b>{selected.source}</b></div></div><div className="drawer-warning"><ShieldCheck size={16}/> Confirm the evidence before contacting this business. No automated messages are sent.</div><button className="btn btn-primary full" onClick={()=>setSelected(null)}>Close profile</button></aside></div>}
   </div>;
 }
