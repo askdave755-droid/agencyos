@@ -32,7 +32,7 @@ npm run preview
 
 Import a CSV with a header row. Supported columns: `name` (or `business`), `city`, `state`, `website`, and `ads`.
 
-Accepted website values: `yes`, `no`, or a website URL. Accepted ads values: `active`, `problem`, `none` / `none-found`. Missing or ambiguous values remain Unknown.
+Accepted website values: `yes`, `no`, or a website URL. Accepted ads values: `good`, `active`, `problem`, `none` / `none-found`. Active ads without a quality assessment remain Unknown; Lane D requires good ads and a good website to be verified. Missing or ambiguous values remain Unknown.
 
 ## Lane rules
 
