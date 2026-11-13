@@ -47,7 +47,7 @@ A failed lookup is not proof that a company has no ads. Store the evidence sourc
 
 ## Integrations and security
 
-HasData Google Maps Search is connected through the Express server in `server.js`. The server reads `HASDATA_API_KEY` from its environment and sends it in the `x-api-key` header. The key is never sent to the browser. The discovery endpoint currently runs one fixed Phoenix HVAC search, caches results for 30 minutes, and rate-limits repeated requests from the same IP.
+HasData Google Maps Search is connected through the Express server in `server.js`. The server reads `HASDATA_API_KEY` from its environment and sends it in the `x-api-key` header. The key is never sent to the browser. Live discovery also requires a separate `AGENCYOS_DISCOVERY_PASSWORD` secret; the user enters that password in the dashboard and the server validates it before spending credits. The discovery endpoint currently runs one fixed Phoenix HVAC search, caches results for 30 minutes, and rate-limits repeated requests from the same IP.
 
 Current HasData documentation lists Google Maps Search at 10 credits per successful request. With 100 monthly credits, plan for roughly 10 successful searches. The first MyPI search uses one request. A Maps listing does not prove that a company has no website or whether it runs ads: missing website evidence remains Unknown, and ad evidence always remains Unknown until separately researched.
 
