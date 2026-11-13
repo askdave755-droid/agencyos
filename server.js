@@ -19,7 +19,8 @@ const MIN_INTERVAL_MS = 60 * 1000;
 app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
-    hasDataConfigured: Boolean(process.env.HASDATA_API_KEY)
+    hasDataConfigured: Boolean(process.env.HASDATA_API_KEY),
+    discoveryPasswordConfigured: Boolean(process.env.AGENCYOS_DISCOVERY_PASSWORD)
   });
 });
 
