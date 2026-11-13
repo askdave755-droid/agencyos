@@ -1,5 +1,6 @@
 import express from "express";
 import path from "node:path";
+import { timingSafeEqual } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 const app = express();
@@ -23,6 +24,18 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.post("/api/prospects/discover", async (req, res) => {
+  const accessPassword = process.env.AGENCYOS_DISCOVERY_PASSWORD;
+  if (!accessPassword) {
+    return res.status(503).json({ error: "Discovery is locked. Add AGENCYOS_DISCOVERY_PASSWORD in Railway Variables before using live credits." });
+  }
+  const suppliedPassword = String(req.get("x-agencyos-password") || "");
+  const expectedBuffer = Buffer.from(accessPassword);
+  const suppliedBuffer = Buffer.from(suppliedPassword);
+  const authorized = expectedBuffer.length === suppliedBuffer.length && timingSafeEqual(expectedBuffer, suppliedBuffer);
+  if (!authorized) {
+    return res.status(401).json({ error: "Enter the AgencyOS discovery password to use live HasData credits." });
+  }
+
   const apiKey = process.env.HASDATA_API_KEY;
   if (!apiKey) {
     return res.status(503).json({ error: "HasData is not configured on the server. Add HASDATA_API_KEY in Railway Variables." });
