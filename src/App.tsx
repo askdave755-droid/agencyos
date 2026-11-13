@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity, Bell, Building2, ChevronDown, CircleHelp, Cloud, Download, ExternalLink, Gauge,
   LayoutDashboard, MapPin, MessageSquare, MoreHorizontal, Plus, Search,
@@ -12,7 +12,7 @@ type Prospect = {
   reviews?: number; website: "yes" | "no" | "unknown";
   ads: "active" | "good" | "none-found" | "problem" | "unknown";
   lane: Lane; score: number; issue: string; offer: string; status: string;
-  source: string; demo?: boolean;
+  source: string; demo?: boolean; address?: string; phone?: string; websiteUrl?: string;
 };
 
 const starterProspects: Prospect[] = [
@@ -69,7 +69,32 @@ export default function App() {
   const [showNotice,setShowNotice] = useState(true);
   const [selected,setSelected] = useState<Prospect|null>(null);
   const [activeNav,setActiveNav] = useState("Overview");
+  const [discoveryLoading,setDiscoveryLoading] = useState(false);
+  const [discoveryMessage,setDiscoveryMessage] = useState("");
+  const [hasDataConfigured,setHasDataConfigured] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(()=>{
+    fetch("/api/health").then(r=>r.json()).then(data=>setHasDataConfigured(Boolean(data.hasDataConfigured))).catch(()=>setHasDataConfigured(false));
+  },[]);
+
+  const runDiscovery = async () => {
+    if(discoveryLoading) return;
+    setDiscoveryLoading(true);
+    setDiscoveryMessage("");
+    try {
+      const response = await fetch("/api/prospects/discover",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({})});
+      const data = await response.json();
+      if(!response.ok) throw new Error(data.error || "Live discovery failed.");
+      const incoming = Array.isArray(data.prospects) ? data.prospects as Prospect[] : [];
+      setProspects(prev=>[...incoming.filter(p=>!prev.some(existing=>existing.id===p.id)),...prev]);
+      setDiscoveryMessage(incoming.length ? `Added ${incoming.length} live businesses from HasData.${data.cached ? " Cached results; no new credits used." : " One successful search used 10 credits."}` : "HasData connected, but this search returned no business records.");
+    } catch(error) {
+      setDiscoveryMessage(error instanceof Error ? error.message : "Live discovery failed. Please try again.");
+    } finally {
+      setDiscoveryLoading(false);
+    }
+  };
 
   const filtered = useMemo(()=>prospects.filter(p=>{
     const matchesLane = activeLane==="All" || p.lane===activeLane;
@@ -147,11 +172,11 @@ export default function App() {
               {filtered.map(p=><tr key={p.id} onClick={()=>setSelected(p)} className="clickable-row"><td><div className="business-cell"><div className="business-logo">{p.name.split(" ").map(x=>x[0]).slice(0,2).join("")}</div><div><b>{p.name}</b><small>{p.demo?"Sample record · replace with live data":p.source}</small></div></div></td><td><span className="location-cell">{p.city}, {p.state}</span></td><td>{p.rating?<span className="rating">★ {p.rating.toFixed(1)} <small>({p.reviews})</small></span>:<span className="muted">—</span>}</td><td><span className="diagnosis">{p.issue}</span></td><td><LanePill lane={p.lane}/></td><td>{p.score?<div className="score-cell"><b>{p.score}</b><span className="score-track"><i style={{width:`${p.score}%`}}/></span></div>:<span className="muted">—</span>}</td><td><MoreHorizontal size={17} className="muted"/></td></tr>)}
               {filtered.length===0&&<tr><td colSpan={7} className="empty-state">No prospects match this view. Import a CSV or change your filters.</td></tr>}
             </tbody></table></div>
-            <div className="table-footer"><span>Showing {filtered.length} of {prospects.length} prospects</span><span className="demo-label"><i/> Sample workspace data</span></div>
+            <div className="table-footer"><span>Showing {filtered.length} of {prospects.length} prospects</span><span className="demo-label"><i/> {prospects.some(p=>p.source.startsWith("HasData"))?"Live HasData results added":"Sample workspace data"}</span></div>
           </div>
 
           <div className="right-column">
-            <div className="panel discovery-panel"><div className="panel-heading compact"><div><div className="panel-kicker">NEXT ACTION</div><h2>Build your first list</h2></div><div className="mini-icon"><WandSparkles size={18}/></div></div><p className="panel-copy">Find HVAC contractors across the Phoenix metro and bring their public business data into MyPI.</p><div className="target-box"><div><MapPin size={15}/><b>Phoenix metropolitan area</b></div><small>Phoenix · Mesa · Scottsdale · Chandler · Gilbert · Glendale · Tempe · Peoria</small></div><div className="integration-line"><span className="status-dot pending"/><div><b>HasData connection</b><small>API key setup required</small></div><button className="text-button" onClick={()=>setActiveNav("Integrations")}>Configure</button></div><button className="btn btn-primary full" disabled title="Connect HasData before running live discovery"><Search size={16}/> Run live discovery <span className="soon">NOT CONNECTED</span></button><div className="tiny-note">Live discovery is disabled until the API is configured securely on the server.</div></div>
+            <div className="panel discovery-panel"><div className="panel-heading compact"><div><div className="panel-kicker">NEXT ACTION</div><h2>Build your first list</h2></div><div className="mini-icon"><WandSparkles size={18}/></div></div><p className="panel-copy">Find HVAC contractors across the Phoenix metro and bring their public business data into MyPI.</p><div className="target-box"><div><MapPin size={15}/><b>Phoenix metropolitan area</b></div><small>Phoenix · Mesa · Scottsdale · Chandler · Gilbert · Glendale · Tempe · Peoria</small></div><div className="integration-line"><span className={`status-dot ${hasDataConfigured?"connected":"pending"}`}/><div><b>HasData connection</b><small>{hasDataConfigured?"Server secret detected":"API key not detected by server"}</small></div><button className="text-button" onClick={()=>setActiveNav("Integrations")}>Configure</button></div><button className="btn btn-primary full" onClick={runDiscovery} disabled={!hasDataConfigured||discoveryLoading}><Search size={16}/> {discoveryLoading?"Searching Phoenix HVAC...":"Run live discovery"} {discoveryLoading?null:<span className="soon">{hasDataConfigured?"10 CREDITS":"NOT CONNECTED"}</span>}</button>{discoveryMessage&&<div className="tiny-note" role="status">{discoveryMessage}</div>}<div className="tiny-note">One Google Maps search; imported ad status stays Unknown until separately audited.</div></div>
 
             <div className="panel lane-guide"><div className="panel-heading compact"><div><div className="panel-kicker">THE SALES DECISION ENGINE</div><h2>Four lanes. One clear offer.</h2></div></div>{(["A","B","C","D"] as Lane[]).map(l=><div className="lane-guide-row" key={l}><LanePill lane={l}/><div><b>{laneInfo[l].label}</b><small>{laneInfo[l].offer}</small></div></div>)}<div className="unknown-note"><ShieldCheck size={14}/> Insufficient evidence? Keep it unclassified.</div></div>
           </div>
