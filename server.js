@@ -1,6 +1,5 @@
 import express from "express";
 import path from "node:path";
-import { timingSafeEqual } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 const app = express();
@@ -13,30 +12,20 @@ app.use(express.json({ limit: "20kb" }));
 let cachedAt = 0;
 let cachedProspects = null;
 const CACHE_MS = 30 * 60 * 1000;
-const lastRequestByIp = new Map();
-const MIN_INTERVAL_MS = 60 * 1000;
+const DISCOVERY_COOLDOWN_MS = 72 * 60 * 60 * 1000;
+let lastDiscoveryAttemptAt = 0;
+let lastSuccessfulDiscoveryAt = 0;
+let discoveryInFlight = false;
+const MIN_RETRY_INTERVAL_MS = 60 * 1000;
 
 app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
-    hasDataConfigured: Boolean(process.env.HASDATA_API_KEY),
-    discoveryPasswordConfigured: Boolean(process.env.AGENCYOS_DISCOVERY_PASSWORD)
+    hasDataConfigured: Boolean(process.env.HASDATA_API_KEY)
   });
 });
 
 app.post("/api/prospects/discover", async (req, res) => {
-  const accessPassword = process.env.AGENCYOS_DISCOVERY_PASSWORD;
-  if (!accessPassword) {
-    return res.status(503).json({ error: "Discovery is locked. Add AGENCYOS_DISCOVERY_PASSWORD in Railway Variables before using live credits." });
-  }
-  const suppliedPassword = String(req.get("x-agencyos-password") || "");
-  const expectedBuffer = Buffer.from(accessPassword);
-  const suppliedBuffer = Buffer.from(suppliedPassword);
-  const authorized = expectedBuffer.length === suppliedBuffer.length && timingSafeEqual(expectedBuffer, suppliedBuffer);
-  if (!authorized) {
-    return res.status(401).json({ error: "Enter the AgencyOS discovery password to use live HasData credits." });
-  }
-
   const apiKey = process.env.HASDATA_API_KEY;
   if (!apiKey) {
     return res.status(503).json({ error: "HasData is not configured on the server. Add HASDATA_API_KEY in Railway Variables." });
@@ -47,12 +36,18 @@ app.post("/api/prospects/discover", async (req, res) => {
     return res.json({ prospects: cachedProspects, cached: true, source: "HasData Google Maps Search" });
   }
 
-  const ip = req.ip || req.socket.remoteAddress || "unknown";
-  const lastRequest = lastRequestByIp.get(ip) || 0;
-  if (now - lastRequest < MIN_INTERVAL_MS) {
-    return res.status(429).json({ error: "Please wait one minute before running another live search." });
+  if (discoveryInFlight) {
+    return res.status(409).json({ error: "A live discovery search is already running. Please wait for it to finish." });
   }
-  lastRequestByIp.set(ip, now);
+  if (now - lastDiscoveryAttemptAt < MIN_RETRY_INTERVAL_MS) {
+    return res.status(429).json({ error: "Please wait one minute before retrying discovery." });
+  }
+  if (lastSuccessfulDiscoveryAt && now - lastSuccessfulDiscoveryAt < DISCOVERY_COOLDOWN_MS) {
+    const hoursRemaining = Math.ceil((DISCOVERY_COOLDOWN_MS - (now - lastSuccessfulDiscoveryAt)) / (60 * 60 * 1000));
+    return res.status(429).json({ error: `A live search has already run recently. To protect HasData credits, try again in about ${hoursRemaining} hour(s). Cached results remain available for 30 minutes.` });
+  }
+  lastDiscoveryAttemptAt = now;
+  discoveryInFlight = true;
 
   try {
     const params = new URLSearchParams({
@@ -117,6 +112,7 @@ app.post("/api/prospects/discover", async (req, res) => {
 
     cachedProspects = prospects;
     cachedAt = Date.now();
+    lastSuccessfulDiscoveryAt = Date.now();
     return res.json({
       prospects,
       cached: false,
@@ -127,6 +123,8 @@ app.post("/api/prospects/discover", async (req, res) => {
   } catch (error) {
     console.error("HasData discovery error:", error?.message || error);
     return res.status(502).json({ error: "Could not reach HasData. Check the connection and try again." });
+  } finally {
+    discoveryInFlight = false;
   }
 });
 
